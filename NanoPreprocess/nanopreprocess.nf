@@ -40,6 +40,7 @@ basecaller_opt            : ${params.basecaller_opt}
 GPU                       : ${params.GPU}
 demultiplexing            : ${params.demultiplexing} 
 demultiplexing_opt        : ${params.demultiplexing_opt} 
+demultifast5		      : ${params.demultifast5}
 
 filter                    : ${params.filter}
 filter_opt                : ${params.filter_opt}
@@ -329,7 +330,10 @@ if(demultiplexer == "deeplexicon") {
 		label 'basecall_cpus'
    	    tag { demultiplexer }  
 		publishDir outputFast5,  mode: 'copy'
-				
+	
+		when: 
+		params.demultifast5 == "ON"
+		
 		input:
     	file("demux_*") from demux_for_fast5_extraction.collect()
     	file("*") from fast5_files_for_demultiplexing.collect()
