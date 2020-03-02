@@ -308,7 +308,17 @@ process mapping {
         samtools sort -@ ${task.cpus} -o ${idfile}.${mapper}.sorted.bam reads.mapped.bam
         rm reads.mapped.bam
         """
-   } else {
+   }
+   else if (mapper == "graphmap"){
+	    def mappars = (params.map_type == "spliced") ? "-x rnaseq" : ""
+ 	    mappars += " ${mapper_opt} "
+        """
+        graphmap align -t ${task.cpus} -r ${reference} ${mappars} -d ${fastq_file}  | samtools view -@ ${task.cpus} -F4 -hSb - > reads.mapped.bam
+        samtools sort -@ ${task.cpus} -o ${idfile}.${mapper}.sorted.bam reads.mapped.bam
+        rm reads.mapped.bam
+        """
+   } 
+   else {
         """
  		echo "nothing to do!"
         """
