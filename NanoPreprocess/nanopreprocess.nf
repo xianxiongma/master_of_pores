@@ -40,7 +40,7 @@ basecaller_opt            : ${params.basecaller_opt}
 GPU                       : ${params.GPU}
 demultiplexing            : ${params.demultiplexing} 
 demultiplexing_opt        : ${params.demultiplexing_opt} 
-demultifast5		      : ${params.demultifast5}
+demulti_fast5		      : ${params.demulti_fast5}
 
 filter                    : ${params.filter}
 filter_opt                : ${params.filter_opt}
@@ -260,6 +260,19 @@ process baseCalling {
 				${multi_cmd}
 			"""
         }
+        else if (demultiplexer == "guppy-readucks") {
+        	"""
+                ${gpu_prefix}
+				guppy_basecaller ${gpu_cmd} ${basecaller_opt} ${demultiplexer_opt} --flowcell ${params.flowcell} --kit ${params.kit} --num_barcode_threads ${task.cpus} --barcode_kits ${params.barcodekit} --trim_barcodes  --fast5_out --input ${infolder} --save_path ./${idfile}_out --cpu_threads_per_caller 1  --num_callers ${task.cpus} 
+				cd ${idfile}_out; 
+				if [ -d barcode01 ]; then
+					for d in barcode*; do echo \$d; cat \$d/*.fastq ${RNA_conv_cmd} > ../${idfile}.\$d.fastq; done;
+				fi
+				cat unclassified/*.fastq ${RNA_conv_cmd} > ../${idfile}.unclassified.fastq; cd ../
+				for i in *.fastq; do gzip \$i; done
+				${multi_cmd}        		
+        	"""
+        }
         else  {
 			"""
             ${gpu_prefix}
@@ -332,7 +345,7 @@ if(demultiplexer == "deeplexicon") {
 		publishDir outputFast5,  mode: 'copy'
 	
 		when: 
-		params.demultifast5 == "ON"
+		params.demulti_fast5 == "ON"
 		
 		input:
     	file("demux_*") from demux_for_fast5_extraction.collect()
@@ -495,7 +508,17 @@ process mapping {
         samtools sort -@ ${task.cpus} -o ${idfile}.${mapper}.sorted.bam reads.mapped.bam
         rm reads.mapped.bam
         """
-   } else {
+   }
+   else if (mapper == "graphmap"){
+	    def mappars = (params.map_type == "spliced") ? "-x rnaseq" : ""
+ 	    mappars += " ${mapper_opt} "
+        """
+        graphmap align -t ${task.cpus} -r ${reference} ${mappars} -d ${fastq_file}  | samtools view -@ ${task.cpus} -F4 -hSb - > reads.mapped.bam
+        samtools sort -@ ${task.cpus} -o ${idfile}.${mapper}.sorted.bam reads.mapped.bam
+        rm reads.mapped.bam
+        """
+   }   
+    else {
         """
  		echo "nothing to do!"
         """

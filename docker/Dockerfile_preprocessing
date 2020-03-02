@@ -5,9 +5,10 @@ MAINTAINER Luca Cozzuto <lucacozzuto@gmail.com>
 
 ARG MULTIQC_VERSION=1.8
 ARG SAMTOOLS_VERSION=1.4.1
-ARG JVARKIT_VERSION=f39087b
+ARG JVARKIT_VERSION=ee952b5
 ARG NANOFILT_VERSION=2.3.0
 ARG GRAPHMAP2_VERSION=220d611
+ARG GRAPHMAP_VERSION=eb8c75d
 ARG PICARD_VERSION=2.20.0
 ARG R_VERSION=3.6.0
 ARG POREQUALITY_VERSION=4fb2f6e
@@ -46,7 +47,12 @@ RUN pip install nanofilt==${NANOFILT_VERSION}
 # Installing graphmap2 -- ONT reads aligner // version is github tag
 RUN yum install -y libstdc++-static
 RUN git clone "https://github.com/lbcb-sci/graphmap2"; cd graphmap2; git checkout ${GRAPHMAP2_VERSION}; make modules; make
-ENV PATH "/project/graphmap2/bin/Linux-x64:${PATH}" 
+ENV PATH "/project/graphmap2/bin/Linux-x64:${PATH}"
+
+# Installing graphmap -- ONT reads aligner // version is github tag
+RUN git clone "https://github.com/isovic/graphmap.git"; cd graphmap; git checkout ${GRAPHMAP_VERSION}; make modules; make
+ENV PATH "/project/graphmap/bin/Linux-x64:${PATH}"
+
 
 # Installing minimap2
 RUN bash -c 'curl -k -L https://github.com/lh3/minimap2/releases/download/v${MINIMAP_VERSION}/minimap2-${MINIMAP_VERSION}_x64-linux.tar.bz2 > minimap.tar.bz2'
@@ -99,7 +105,7 @@ RUN yum clean all
 #cleaning
 RUN rm -fr *.tar.gz; rm -fr *.bz2; rm -fr ./tmp
 RUN rm -rf /var/cache/yum
-RUN rm -fr fastqc.zip  samtools-* graphmap  
+RUN rm -fr fastqc.zip  samtools-*   
 
 #ENV PATH "/project/ont-guppy_3.1.5_linux64/ont-guppy/bin/:${PATH}" 
 ENV SAM2TSV "java -jar /project/jvarkit/dist/sam2tsv.jar"
