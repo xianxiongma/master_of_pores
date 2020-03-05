@@ -181,8 +181,9 @@ if(demultiplexer == "deeplexicon") {
         file(deeplexicon_folder)
         
 		output:
-		set idfile, file ("${idfile}_demux.tsv") into demux_for_fastq_extraction
-		file ("${idfile}_demux.tsv") into demux_for_fast5_extraction
+		//set idfile, file ("${idfile}_demux.tsv") into demux_for_fastq_extraction
+		//file ("${idfile}_demux.tsv") into demux_for_fast5_extraction
+		file ("${idfile}_demux.tsv") into demux_for_collect
 
 		script:
 		def model = ''
@@ -196,16 +197,32 @@ if(demultiplexer == "deeplexicon") {
  		"""
 	} 
 	
-	process extracting_demultiplexed_fastq {
-		label 'basecall_cpus'
-   	    tag {"${demultiplexer}"}  
+	process collecting_deeplexicon {
 				
 		input:
-    	set idfile, file(demux)  from demux_for_fastq_extraction
-        file(fastq) from fastq_files_for_demultiplexing
+    	file("demux_*") from demux_for_collect.collect()
         
 		output:
-		set idfile, file ("*.fastq.gz") into fastq_for_filtering
+		file ("all_demux.txt") into demux_for_fastq_extraction
+
+		script:
+		"""
+		head -n 1 demux_1 > all_demux.txt
+		grep -h -v "Confidence" demux_* >> all_demux.txt
+ 		"""
+		
+    }
+
+	process extracting_demultiplexed_fastq {
+		label 'basecall_cpus'
+   	    tag {"${idfile}"}  
+				
+		input:
+    	file(demux) from demux_for_fastq_extraction
+        set idfile, file(fastq) from fastq_files_for_demultiplexing
+        
+		output:
+		set idfile, file("*.fastq.gz") into fastq_for_filtering
 
 		script:
 		"""
@@ -238,20 +255,20 @@ if (params.filter == "nanofilt") {
 		"""
 	} 
 } else {
-	fastq_for_filtering.transpose().into{fastq_files_for_fastqc; fastq_files_for_mapping}
+	fastq_for_filtering.transpose().set{ fastq_for_next_step}
 }
 
 // check this
-//fastq_for_next_step.map{
-//	filepath=it[1]
-//    if (demultiplexer != "OFF") {
-//        fileparts = filepath.getName().tokenize(".")
-// 		["${folder_name}.${fileparts[-3]}", filepath]
-//	} else {
-//		["${folder_name}", filepath]
-//	}
-//}.groupTuple().into{fastq_files_for_fastqc; fastq_files_for_mapping; ocazz}
-//ocazz.println()
+fastq_for_next_step.map{
+	filepath=it[1]
+    if (demultiplexer != "OFF") {
+        fileparts = filepath.getName().tokenize(".")
+ 		["${folder_name}.${fileparts[-3]}", filepath]
+	} else {
+		["${folder_name}", filepath]
+	}
+}.groupTuple().into{fastq_files_for_fastqc; fastq_files_for_mapping; ocazz}
+ocazz.println()
 
 /*
 *  Perform fastQC on fastq files
