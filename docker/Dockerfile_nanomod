@@ -3,7 +3,7 @@ FROM biocorecrg/centos-perlbrew-pyenv3-java:centos7
 # File Author / Maintainer
 MAINTAINER Luca Cozzuto <lucacozzuto@gmail.com> 
 
-ARG JVARKIT_VERSION=5a9a1ed
+ARG JVARKIT_VERSION=f39087b
 ARG PICARD_VERSION=2.20.0
 ARG R_VERSION=3.6.0
 ARG NANOPOLISH_VERSION=v0.11.1
@@ -12,7 +12,7 @@ ARG TOMBO_VERSION=1.5
 ARG ONTFAST5API_VERSION=1.4.4
 ARG TAILFINDR_VERSION=6865f84
 ARG SAMTOOLS_VERSION=1.4.1
-ARG EPINANO_VERSION=2ca3843
+ARG EPINANO_VERSION=1.2
 ARG BEDTOOLS_VERSION=2.29.2
 
 #upgrade pip
@@ -67,7 +67,7 @@ RUN cd nanopolish; git checkout ${NANOPOLISH_VERSION}; make all
 
 # Installing modules for EPINANO
 RUN pip install h5py==2.8.0 numpy==1.16.1 pandas==0.23.4 scikit-learn==0.20.2
-RUN git clone --depth 1 https://github.com/enovoa/EpiNano.git; cd EpiNano; git checkout ${EPINANO_VERSION}
+RUN git clone --depth 1 https://github.com/enovoa/EpiNano.git
 RUN chmod +x /project/EpiNano/scripts/*
 ENV PATH "/project/EpiNano/scripts/:/project/nanopolish/:${PATH}" 
 
