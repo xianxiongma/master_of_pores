@@ -187,13 +187,16 @@ if(demultiplexer == "deeplexicon") {
 
 		script:
 		def model = ''
-		def deep_option = 'multi'
+		def executable = 'deeplexicon.py -f multi'
 		if (multi5 == 0){
-			deep_option = 'single'
+			executable = 'deeplexicon.py -f single'
+		}
+ 		if (demultiplexer_opt.contains("pAmps-final-actrun_newdata_nanopore_UResNet20v2_model.030.h5")){
+			executable = 'cmd_line_deeplexicon_caller_2019_09_12.py'
 		}
 		"""
 		    ln -s ${deeplexicon_folder}/* .
-            deeplexicon.py -p ./ ${demultiplexer_opt} -f ${deep_option} -b 4000 -v > ${idfile}_demux.tsv
+            ${executable} -p ./ ${demultiplexer_opt}  -b 4000 -v > ${idfile}_demux.tsv
  		"""
 	} 
 	
