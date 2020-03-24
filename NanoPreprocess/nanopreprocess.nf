@@ -51,6 +51,9 @@ map_type                  : ${params.map_type}
 counter                   : ${ params.counter}
 counter_opt               : ${ params.counter_opt}
 
+variant_call              : ${params.variant_call}
+variant_opt               : ${params.variant_opt}
+
 email                     : ${params.email}
 """
 
@@ -97,6 +100,7 @@ outputQual     = "${params.output}/QC_files"
 outputMultiQC  = "${params.output}/report"
 outputMapping  = "${params.output}/alignment"
 outputCounts   = "${params.output}/counts"
+outputVars     = "${params.output}/variants"
 outputAssigned = "${params.output}/assigned"
 outputReport   = file("${outputMultiQC}/multiqc_report.html")
 
@@ -114,7 +118,7 @@ if( outputReport.exists() ) {
 Channel
     .fromPath( params.fast5)                                             
     .ifEmpty { error "Cannot find any file matching: ${params.fast5}" }
-    .into {fast5_4_name; fast5_4_testing; fast5_4_granularity}
+    .into {fast5_4_name; fast5_4_testing; fast5_4_granularity; fast5_4_variant}
 
 /*
  * Get the name from the folder
@@ -315,7 +319,7 @@ if(demultiplexer == "deeplexicon") {
 		if (multi5 == 0){
 			executable = 'deeplexicon.py -f single'
 		}
-		if (demultiplexer_opt.contains("pAmps-final-actrun_newdata_nanopore_UResNet20v2_model.030.h5")){
+ 		if (demultiplexer_opt.contains("pAmps-final-actrun_newdata_nanopore_UResNet20v2_model.030.h5")){
 			executable = 'cmd_line_deeplexicon_caller_2019_09_12.py'
 		}
 		"""
@@ -420,7 +424,7 @@ process concatenateFastQFiles {
     set idfile, file(fastq_files) from fastq_files_for_grouping
 
     output:
-    set idfile, file("${idfile}.fq.gz") into fastq_files_for_fastqc, fastq_files_for_mapping
+    set idfile, file("${idfile}.fq.gz") into fastq_files_for_fastqc, fastq_files_for_mapping, fastq_files_for_variants
 
     script:
     """
@@ -443,6 +447,7 @@ process QC {
 
     output:
     file ("${folder_name}_QC") into QC_folders
+    file ("final_summary.stats") into stat_for_variants
 
     script:
     """
@@ -491,7 +496,8 @@ process mapping {
     set idfile, file (fastq_file) from fastq_files_for_mapping
     
     output:
-    set idfile, file("${idfile}.${mapper}.sorted.bam") optional true into aligned_reads, aligned_reads_for_QC, aligned_reads_for_QC2, aligned_reads_for_counts
+    set idfile, file("${idfile}.${mapper}.sorted.bam") optional true into aligned_reads, aligned_reads_for_QC, aligned_reads_for_QC2, aligned_reads_for_counts, aligned_reads_for_vars
+    file("${idfile}.${mapper}.sorted.bam*") optional true 
 
     script:    
     if (mapper == "minimap2") {
@@ -500,6 +506,7 @@ process mapping {
  	    """
         minimap2 -t ${task.cpus} ${mappars} -uf ${reference} ${fastq_file} | samtools view -@ ${task.cpus} -F4 -hSb - > reads.mapped.bam
         samtools sort -@ ${task.cpus} -o ${idfile}.${mapper}.sorted.bam reads.mapped.bam
+        samtools index ${idfile}.${mapper}.sorted.bam 
         rm reads.mapped.bam
         """
    }
@@ -658,6 +665,48 @@ process alnQC2 {
 }
 
 QC_folders.mix(fastqc_for_multiqc,qc2_for_multiqc,read_counts,count_repo_for_multiQC,alnQC_for_multiQC).set{files_for_report}
+
+/*
+*  Perform viral variant call (experimental)
+*/
+
+if ( params.variant_call == "YES" && params.seq_type != "RNA") {
+
+	process variant_calling {
+		tag {"${idfile}"}  
+		publishDir outputVars, pattern: "*.vcf", mode: 'copy'
+		label 'variant_proc'
+
+		input:
+		set idfile, file(bamfile), file(fastqfile) from aligned_reads_for_vars.join(fastq_files_for_variants)
+        file(reference) 
+        file(stat_for_variants)
+        file "*" from fast5_4_variant.collect()
+
+		output:
+		file("${idfile}.cvf")
+		
+		script:
+		gzipcmd = "ln -s ${reference} myreference.fasta"
+		if (reference.endsWith("gz")) {
+			gzipcmd = "zcat ${reference}  > myreference.fasta" 
+		}    
+		"""
+		samtools index ${bamfile}
+		if [ `echo ${reference} | grep ".gz"` ]; then
+			zcat ${reference} > myreference.fasta
+		else
+		  ln -s ${reference} myreference.fasta
+		fi
+		nanopolish index -s ${stat_for_variants} -d ./ ${fastqfile}
+		nanopolish variants --threads ${task.cpus} --reads ${fastqfile} --bam ${bamfile} --genome myreference.fasta --outfile ${idfile}.vcf --ploidy 1 --calculate-all-support	
+		"""
+		 
+		}
+	}
+
+
+
 
 /*
 *  Perform multiQC report
