@@ -270,8 +270,7 @@ fastq_for_next_step.map{
 	} else {
 		["${folder_name}", filepath]
 	}
-}.groupTuple().into{fastq_files_for_fastqc; fastq_files_for_mapping; ocazz}
-ocazz.println()
+}.groupTuple().set{fastq_files_for_fastqc; fastq_files_for_mapping}
 
 /*
 *  Perform fastQC on fastq files
