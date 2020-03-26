@@ -277,7 +277,7 @@ process calcNanoCompore {
     set val(combID), file(tsv_file_A), file(tsv_file_B) from grouped_event_for_nanocompore
     
     output:
-    file("${folder_names}_nanocompres")
+    file("${combID}_nanocompres")
     
     script:
 	def folder_names = "${combID}".split("--")
@@ -290,7 +290,7 @@ nanocompore sampcomp \
     --label1 ${folder_name_A} \
     --label2 ${folder_name_B} \
     --fasta ${reference} \
-    --outpath ./${folder_names}_nanocompres/ \
+    --outpath ./${combID}_nanocompres/ \
 	"""
 }
 
