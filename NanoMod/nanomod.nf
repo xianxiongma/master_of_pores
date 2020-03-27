@@ -268,7 +268,7 @@ id_for_nanocompore.combine(grouped_event_A, by: 0).map {
 */
 
 process calcNanoCompore {
-    label 'big_mem_cpus'
+    label 'big_long_mem_cpus'
     tag {"${combID}"}  
 	publishDir outputNanocompore, pattern: "*.significant_regions.fasta",  mode: 'copy'
         
@@ -284,7 +284,7 @@ process calcNanoCompore {
 	def folder_name_A = folder_names[0]
 	def folder_name_B = folder_names[1]
 	"""
-nanocompore sampcomp \
+nanocompore sampcomp --nthreads ${task.cpus}\
     --file_list1 ${tsv_file_A}/out_eventalign_collapse.tsv \
     --file_list2 ${tsv_file_B}/out_eventalign_collapse.tsv \
     --label1 ${folder_name_A} \
