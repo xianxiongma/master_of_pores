@@ -242,7 +242,7 @@ process cat_collapsed_nanopolish {
     	cp collapsed_folder_/out_eventalign_collapse.tsv  ${idsample}_event_collapsed_align.tsv/out_eventalign_collapse.tsv      
     	cp collapsed_folder_/out_eventalign_collapse.tsv.idx  ${idsample}_event_collapsed_align.tsv/out_eventalign_collapse.tsv.idx
 	else    
-		cat collapsed_folder_1/out_eventalign_collapse.tsv  | awk '! (/^#/ && NF=1)' >> ${idsample}_event_collapsed_align.tsv/out_eventalign_collapse.tsv
+		cat collapsed_folder_*/out_eventalign_collapse.tsv  | awk '! (/^#/ && NF=1)' >> ${idsample}_event_collapsed_align.tsv/out_eventalign_collapse.tsv
 		head -n 1 collapsed_folder_1/out_eventalign_collapse.tsv.idx > ${idsample}_event_collapsed_align.tsv/out_eventalign_collapse.tsv.idx
 		for i in collapsed_folder_*/out_eventalign_collapse.tsv.idx; do tail -n +2 \$i >> ${idsample}_event_collapsed_align.tsv/out_eventalign_collapse.tsv.idx; done
     fi 
