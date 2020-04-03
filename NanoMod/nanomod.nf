@@ -262,7 +262,6 @@ id_for_nanocompore.combine(grouped_event_A, by: 0).map {
 	[ "${it[1]}--${it[0]}", it[2], it[3]]
 }.set{grouped_event_for_nanocompore}
 
-.println()
 
 /*
 * detect modification 
@@ -292,6 +291,7 @@ nanocompore sampcomp --nthreads ${task.cpus}\
     --label2 ${folder_name_B} \
     --fasta ${reference} \
     --outpath ./${combID}_nanocompres/ \
+    ${params.nanocompore_opt} --pvalue_thr 1 --logit --comparison_methods GMM,KS,MW,TT --overwrite 
 	"""
 }
 
