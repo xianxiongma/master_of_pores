@@ -210,43 +210,35 @@ process eventalign_with_nanopolish {
     file(reference)
     
     output:
-    set idsample, file ("*_event_collapsed_align.tsv") into np_collapsed_folders
+    set idsample, file ("*_event_align.tsv.gz") into np_eventalign_folders
 
     script:
     """ 
     mkdir fast5_files/
     cd fast5_files/; ln -s ../*.fast5 .; cd ../
-    nanopolish eventalign -t ${task.cpus} --reads ${fastq} --bam ${bam} --genome ${reference} --samples --print-read-names --scale-events --samples > ${idsample}_${fast5_folder}_event_align.tsv
-    NanopolishComp Eventalign_collapse -t ${task.cpus} -i ${idsample}_${fast5_folder}_event_align.tsv -s -o ${idsample}_${fast5_folder}_event_collapsed_align.tsv
+    nanopolish eventalign -t ${task.cpus} --reads ${fastq} --bam ${bam} --genome ${reference} --samples --print-read-names --scale-events --samples | pigz -p ${task.cpus} > ${idsample}_${fast5_folder}_event_align.tsv.gz
     """
 }
+//     #NanopolishComp Eventalign_collapse -t ${task.cpus} -i ${idsample}_${fast5_folder}_event_align.tsv -s -o ${idsample}_${fast5_folder}_event_collapsed_align.tsv
 
 
 /*
 */
 
 process cat_collapsed_nanopolish {
-    label 'single_cpu'
+    label 'big_long_mem_cpus'
     tag {"${idsample}"}  
 	
     input:
-    set idsample, file("collapsed_folder_*") from np_collapsed_folders.groupTuple() 
+    set idsample, file("event_align_*") from np_eventalign_folders.groupTuple() 
     
     output:
     set idsample, file("${idsample}_event_collapsed_align.tsv") into np_event_collapsed 
+    file("${idsample}_combined.eventalign.tsv.gz") 
 
     script:
     """
- 	mkdir ${idsample}_event_collapsed_align.tsv
-    if [ -f "collapsed_folder_" ]; then
-    	cp collapsed_folder_/out_eventalign_collapse.tsv  ${idsample}_event_collapsed_align.tsv/out_eventalign_collapse.tsv      
-    	cp collapsed_folder_/out_eventalign_collapse.tsv.idx  ${idsample}_event_collapsed_align.tsv/out_eventalign_collapse.tsv.idx
-	else    
-		cat collapsed_folder_*/out_eventalign_collapse.tsv  | awk 'NF>1' >> ${idsample}_event_collapsed_align.tsv/out_eventalign_collapse.tsv
-        echo '#' >> ${idsample}_event_collapsed_align.tsv/out_eventalign_collapse.tsv
-		head -n 1 collapsed_folder_1/out_eventalign_collapse.tsv.idx > ${idsample}_event_collapsed_align.tsv/out_eventalign_collapse.tsv.idx
-		for i in collapsed_folder_*/out_eventalign_collapse.tsv.idx; do tail -n +2 \$i >> ${idsample}_event_collapsed_align.tsv/out_eventalign_collapse.tsv.idx; done
-    fi 
+	zcat event_align* | awk '!(/^contig/ && NR>1)' | tee   >(pigz -p ${task.cpus} -9 - > ${idsample}_combined.eventalign.tsv.gz) | NanopolishComp Eventalign_collapse -t ${task.cpus} -o ${idsample}_event_collapsed_align.tsv
     """
 }
 
