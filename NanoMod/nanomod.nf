@@ -219,13 +219,13 @@ process eventalign_with_nanopolish {
     nanopolish eventalign -t ${task.cpus} --reads ${fastq} --bam ${bam} --genome ${reference} --samples --print-read-names --scale-events --samples | pigz -p ${task.cpus} > ${idsample}_${fast5_folder}_event_align.tsv.gz
     """
 }
-//     #NanopolishComp Eventalign_collapse -t ${task.cpus} -i ${idsample}_${fast5_folder}_event_align.tsv -s -o ${idsample}_${fast5_folder}_event_collapsed_align.tsv
 
 
 /*
 */
 
 process cat_collapsed_nanopolish {
+	publishDir outputNanocompore, pattern: "*_combined.eventalign.tsv.gz",  mode: 'copy'
     label 'big_long_mem_cpus'
     tag {"${idsample}"}  
 	
@@ -262,7 +262,7 @@ id_for_nanocompore.combine(grouped_event_A, by: 0).map {
 process calcNanoCompore {
     label 'big_long_mem_cpus'
     tag {"${combID}"}  
-	publishDir outputNanocompore, pattern: "*.significant_regions.fasta",  mode: 'copy'
+	publishDir outputNanocompore,  mode: 'copy'
         
     input:
     file(reference)
