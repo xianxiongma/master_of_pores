@@ -67,6 +67,7 @@ outputtombo       = "${params.output}/Tombo"
 outputEpinano     = "${params.output}/Epinano"
 outputCombined    = "${params.output}/Comb_mod"
 outputNanocompore = "${params.output}/Nanocomp"
+outputNanopolish  = "${params.output}/Nanopolish"
 //outputReport   = file("${outputMultiQC}/multiqc_report.html")
 
 /*
@@ -225,7 +226,7 @@ process eventalign_with_nanopolish {
 */
 
 process cat_collapsed_nanopolish {
-	publishDir outputNanocompore, pattern: "*_combined.eventalign.tsv.gz",  mode: 'copy'
+	publishDir outputNanopolish, pattern: "*_combined.eventalign.tsv.gz",  mode: 'copy'
     label 'big_long_mem_cpus'
     tag {"${idsample}"}  
 	
