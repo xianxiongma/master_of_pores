@@ -48,8 +48,10 @@ mapper                    : ${params.mapper}
 mapper_opt                : ${params.mapper_opt}
 map_type                  : ${params.map_type}
 
-counter                   : ${ params.counter}
-counter_opt               : ${ params.counter_opt}
+counter                   : ${params.counter}
+counter_opt               : ${params.counter_opt}
+
+downsampling			  : ${params.downsampling}
 
 variant_call              : ${params.variant_call}
 variant_opt               : ${params.variant_opt}
@@ -99,6 +101,7 @@ outputFast5    = "${params.output}/fast5_files"
 outputQual     = "${params.output}/QC_files"
 outputMultiQC  = "${params.output}/report"
 outputMapping  = "${params.output}/alignment"
+outputCRAM     = "${params.output}/cram_files"
 outputCounts   = "${params.output}/counts"
 outputVars     = "${params.output}/variants"
 outputAssigned = "${params.output}/assigned"
@@ -497,6 +500,7 @@ process mapping {
     
     output:
     set idfile, file("${idfile}.${mapper}.sorted.bam") optional true into aligned_reads, aligned_reads_for_QC, aligned_reads_for_QC2, aligned_reads_for_counts, aligned_reads_for_vars
+    set idfile, mapper, file("${idfile}.${mapper}.sorted.bam"), file("${idfile}.${mapper}.sorted.bam.bai") optional true  into aligned_reads_for_crams
     file("${idfile}.${mapper}.sorted.bam*") optional true 
 
     script:    
@@ -536,6 +540,40 @@ process mapping {
 }
 
 /*
+*  Perform mapping and sorting
+*/
+process cram_conversion {
+    tag {"${mapper}-${idfile}"}  
+    publishDir outputCRAM, mode: 'copy'
+    label 'big_mem_cpus'
+
+    input:
+    file(reference)
+    set idfile, val(mapper), file(aln), file(index) from aligned_reads_for_crams
+    
+    output:
+    file("${idfile}.${mapper}.sorted.cram*") optional true 
+    script:
+    def downcmd = ""
+    def input = aln
+    def cleancmd = ""
+	if (params.downsampling != "") {
+		def perc = params.downsampling/100
+		downcmd = "samtools view -@ ${task.cpus} -bs ${perc} ${aln} > subsample.bam"
+		input = "subsample.bam"
+		cleancmd = "rm subsample.bam"
+	}
+ 	"""
+ 		${downcmd}
+		samtools view  -@ ${task.cpus} -C ${input} -T ${reference} -o ${idfile}.${mapper}.sorted.cram
+		samtools index ${idfile}.${mapper}.sorted.cram
+		${cleancmd} 
+    """
+}
+
+
+
+/*
 *  Perform counting (optional)
 */
 
@@ -555,14 +593,14 @@ if ( params.counter == "YES") {
 		script:    
 		if (params.ref_type == "transcriptome") {
 			"""
-			NanoCount -i ${bamfile} -o ${idfile}.count ${counter_opt};
+			NanoCount -i ${bamfile} ${counter_opt} -o ${idfile}.count ${counter_opt};
 	awk '{sum+=\$3}END{print FILENAME"\t"sum}' ${idfile}.count |sed s@.count@@g > ${idfile}.stats
 	samtools view -F 256 ${bamfile} |cut -f 1,3 > ${idfile}.assigned
 			"""
 		} else if (params.ref_type == "genome") {
 			def anno = unzipBash("${params.annotation}") 
 			"""
-			samtools view ${bamfile} |htseq-count -f sam - ${anno} -o ${idfile}.sam > ${idfile}.count
+			samtools view ${bamfile} |htseq-count -f sam - ${anno} ${counter_opt} -o ${idfile}.sam > ${idfile}.count
 			awk '{gsub(/XF:Z:/,"",\$NF); print \$1"\t"\$NF}' ${idfile}.sam |grep -v '__' > ${idfile}.assigned
 			rm ${idfile}.sam
 			"""		
