@@ -458,8 +458,7 @@ process combineEpinanoPred {
   
     script:
 	"""
-    zcat epi_split_1 | head -n 1 > ${sampleID}.prediction.poly.dump.csv;
-    for i in epi_split_*; do zcat \$i | grep -v "Window" >> ${sampleID}.prediction.poly.dump.csv; done
+	for i in epi_split_*; do zcat \$i | awk '!(NR>1 && /Window/)' >> ${sampleID}.prediction.poly.dump.csv; done
     gzip ${sampleID}.prediction.poly.dump.csv
 	"""
 
