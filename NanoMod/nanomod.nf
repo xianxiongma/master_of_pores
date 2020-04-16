@@ -396,6 +396,7 @@ process CallVariantsForEpinano {
 */
 
 process calcVarFrequenciesForEpinano {
+	publishDir outputEpinano,  pattern: "*.csv.gz", mode: 'copy'
 
     tag {"${sampleID}"}  
     label 'big_mem_cpus'
@@ -404,21 +405,23 @@ process calcVarFrequenciesForEpinano {
     set val(sampleID), file(tsvfile) from variants_for_frequency
     
     output:
-    set val(sampleID), file("*per_site_var.5mer.csv") into per_site_vars
+    set val(sampleID), file("*per_site_var.5mer.csv.gz") into per_site_vars
+    file("*.csv.gz")
    
     script:
 	"""
 	TSV_to_Variants_Freq.py3 -f ${tsvfile} -t ${task.cpus}
+	for i in *.csv; do gzip \$i; done
 	"""
 }
 
 per_site_vars.map{
-	[ it[0], it[1].splitText( by: 1000000, keepHeader:true, file:true ) ]
+	[ it[0], it[1].splitText( by: 1000000, keepHeader:true, compress:true, file:true ) ]
 }.transpose().set{per_site_vars_splitted}
 
 /*
 * 
-*/
+
 
 process predictWithEPInano {
 
@@ -441,7 +444,7 @@ process predictWithEPInano {
 
 
 /*
-*/
+
 process combineEpinanoPred {
 	publishDir outputEpinano,  mode: 'copy'
 
