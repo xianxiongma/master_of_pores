@@ -71,7 +71,7 @@ folders_for_analyisis.map {
     }.transpose().into{data_for_tailfindr; data_for_nanopolish_raw}
 
 folders_for_bam_filtering.map {  
-        [ it[0], file("${it[1][0]}/alignment/*") ]
+        [ it[0], file("${it[1][0]}/alignment/*.bam") ]
     }.set{data_for_bam_filtering}
 
 folders_for_fastq.map {
