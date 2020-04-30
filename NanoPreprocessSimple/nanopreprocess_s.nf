@@ -37,7 +37,6 @@ granularity               : ${params.granularity}
 GPU                       : ${params.GPU}
 demultiplexing            : ${params.demultiplexing} 
 demultiplexing_opt        : ${params.demultiplexing_opt} 
-demultifast5		      : ${params.demultifast5}
 
 filter                    : ${params.filter}
 filter_opt                : ${params.filter_opt}
@@ -47,6 +46,11 @@ map_type                  : ${params.map_type}
 
 counter                   : ${ params.counter}
 counter_opt               : ${ params.counter_opt}
+
+downsampling			  : ${params.downsampling}
+
+variant_caller            : ${params.variant_caller}
+variant_opt               : ${params.variant_opt}
 
 email                     : ${params.email}
 """
@@ -83,7 +87,9 @@ outputFast5    = "${params.output}/fast5_files"
 outputQual     = "${params.output}/QC_files"
 outputMultiQC  = "${params.output}/report"
 outputMapping  = "${params.output}/alignment"
+outputCRAM     = "${params.output}/cram_files"
 outputCounts   = "${params.output}/counts"
+outputVars     = "${params.output}/variants"
 outputAssigned = "${params.output}/assigned"
 outputReport   = file("${outputMultiQC}/multiqc_report.html")
 
@@ -294,9 +300,6 @@ process fastQC {
     """
 }
 
-/*
-*  Perform mapping and sorting
-*/
 process mapping {
     tag {"${mapper}-${idfile}"}  
     publishDir outputMapping, mode: 'copy'
@@ -308,6 +311,9 @@ process mapping {
     
     output:
     set idfile, file("${idfile}.${mapper}.sorted.bam") optional true into aligned_reads, aligned_reads_for_QC, aligned_reads_for_QC2, aligned_reads_for_counts
+    set idfile, mapper, file("${idfile}.${mapper}.sorted.bam"), file("${idfile}.${mapper}.sorted.bam.bai") optional true  into aligned_reads_for_crams
+	set idfile, file("${idfile}.${mapper}.sorted.bam"), file("${idfile}.${mapper}.sorted.bam.bai") optional true  into aligned_reads_for_vars    
+    file("${idfile}.${mapper}.sorted.bam*") optional true 
 
     script:    
     if (mapper == "minimap2") {
@@ -316,6 +322,7 @@ process mapping {
  	    """
         minimap2 -t ${task.cpus} ${mappars} -uf ${reference} ${fastq_file} | samtools view -@ ${task.cpus} -F4 -hSb - > reads.mapped.bam
         samtools sort -@ ${task.cpus} -o ${idfile}.${mapper}.sorted.bam reads.mapped.bam
+        samtools index -@ ${task.cpus} ${idfile}.${mapper}.sorted.bam 
         rm reads.mapped.bam
         """
    }
@@ -325,6 +332,7 @@ process mapping {
         """
         graphmap2 align -t ${task.cpus} -r ${reference} ${mappars} -d ${fastq_file}  | samtools view -@ ${task.cpus} -F4 -hSb - > reads.mapped.bam
         samtools sort -@ ${task.cpus} -o ${idfile}.${mapper}.sorted.bam reads.mapped.bam
+        samtools index -@ ${task.cpus} ${idfile}.${mapper}.sorted.bam 
         rm reads.mapped.bam
         """
    }
@@ -334,14 +342,51 @@ process mapping {
         """
         graphmap align -t ${task.cpus} -r ${reference} ${mappars} -d ${fastq_file}  | samtools view -@ ${task.cpus} -F4 -hSb - > reads.mapped.bam
         samtools sort -@ ${task.cpus} -o ${idfile}.${mapper}.sorted.bam reads.mapped.bam
-        rm reads.mapped.bam
+        samtools index -@ ${task.cpus} ${idfile}.${mapper}.sorted.bam 
+		rm reads.mapped.bam
         """
-   } 
-   else {
+   }   
+    else {
         """
  		echo "nothing to do!"
         """
-   }     
+   } 
+}
+
+/*
+*  Perform mapping and sorting
+*/
+process cram_conversion {
+    tag {"${mapper}-${idfile}"}  
+    publishDir outputCRAM, mode: 'copy'
+    label 'big_mem_cpus'
+
+    input:
+    file(reference)
+    set idfile, val(mapper), file(aln), file(index) from aligned_reads_for_crams
+    
+    output:
+    file("${idfile}.${mapper}.sorted.cram*") optional true 
+    script:
+    def downcmd = ""
+    def input = aln
+    def cleancmd = ""
+	gzipcmd = unzipCmd(reference, "myreference.fasta")
+	gzipclean = "rm myreference.fasta"  
+	if (params.downsampling != "") {
+		def perc = params.downsampling/100
+		downcmd = "samtools view -@ ${task.cpus} -bs ${perc} ${aln} > subsample.bam"
+		input = "subsample.bam"
+		cleancmd = "rm subsample.bam"
+	}
+ 	"""
+ 		${downcmd}
+ 		${gzipcmd}
+		samtools view  -@ ${task.cpus} -C ${input} -T  myreference.fasta -o ${idfile}.${mapper}.sorted.cram
+		samtools index -@ ${task.cpus} ${idfile}.${mapper}.sorted.cram
+		${cleancmd} 
+		${gzipclean}
+    """
 }
 
 /*
@@ -474,6 +519,47 @@ process alnQC2 {
 }
 
 fastqc_for_multiqc.mix(qc2_for_multiqc,read_counts,count_repo_for_multiQC,alnQC_for_multiQC).set{files_for_report}
+
+/*
+*  Perform viral variant call (experimental)
+*/
+
+if ( params.variant_caller == "YES" && params.seq_type != "RNA") {
+
+	process variant_calling {
+		tag {"${idfile}"}  
+		publishDir outputVars, pattern: "*.vcf", mode: 'copy'
+		label 'big_cpus'
+
+		input:
+		set idfile, file(bamfile), file(bai) from aligned_reads_for_vars
+        file(reference) 
+        
+		output:
+		file("*.vcf")
+		
+		script:
+		gzipcmd = unzipCmd(reference, "myreference.fasta")
+		gzipclean = "rm myreference.fasta"  
+		"""
+			${gzipcmd}
+			medaka_variant ${params.variant_opt} -i ${bamfile} -f myreference.fasta -d -t ${task.cpus} -o ./out
+			mv `ls -t out/round_*.vcf| head -n1 ` .
+			${gzipclean}
+		"""
+		}
+	}
+
+
+// make named pipe 
+def unzipCmd(filename, unzippedname) { 
+    cmd = "ln -s filename unzippedname"
+    ext = filename.getExtension()
+    if (ext == "gz") {
+    	cmd = "zcat ${filename} > ${unzippedname}"
+    }
+    return cmd
+}
 
 /*
 *  Perform multiQC report

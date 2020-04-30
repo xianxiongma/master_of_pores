@@ -53,7 +53,7 @@ counter_opt               : ${params.counter_opt}
 
 downsampling			  : ${params.downsampling}
 
-variant_call              : ${params.variant_call}
+variant_caller            : ${params.variant_caller}
 variant_opt               : ${params.variant_opt}
 
 email                     : ${params.email}
@@ -499,8 +499,9 @@ process mapping {
     set idfile, file (fastq_file) from fastq_files_for_mapping
     
     output:
-    set idfile, file("${idfile}.${mapper}.sorted.bam") optional true into aligned_reads, aligned_reads_for_QC, aligned_reads_for_QC2, aligned_reads_for_counts, aligned_reads_for_vars
+    set idfile, file("${idfile}.${mapper}.sorted.bam") optional true into aligned_reads, aligned_reads_for_QC, aligned_reads_for_QC2, aligned_reads_for_counts
     set idfile, mapper, file("${idfile}.${mapper}.sorted.bam"), file("${idfile}.${mapper}.sorted.bam.bai") optional true  into aligned_reads_for_crams
+	set idfile, file("${idfile}.${mapper}.sorted.bam"), file("${idfile}.${mapper}.sorted.bam.bai") optional true  into aligned_reads_for_vars    
     file("${idfile}.${mapper}.sorted.bam*") optional true 
 
     script:    
@@ -510,7 +511,7 @@ process mapping {
  	    """
         minimap2 -t ${task.cpus} ${mappars} -uf ${reference} ${fastq_file} | samtools view -@ ${task.cpus} -F4 -hSb - > reads.mapped.bam
         samtools sort -@ ${task.cpus} -o ${idfile}.${mapper}.sorted.bam reads.mapped.bam
-        samtools index ${idfile}.${mapper}.sorted.bam 
+        samtools index -@ ${task.cpus} ${idfile}.${mapper}.sorted.bam 
         rm reads.mapped.bam
         """
    }
@@ -520,6 +521,7 @@ process mapping {
         """
         graphmap2 align -t ${task.cpus} -r ${reference} ${mappars} -d ${fastq_file}  | samtools view -@ ${task.cpus} -F4 -hSb - > reads.mapped.bam
         samtools sort -@ ${task.cpus} -o ${idfile}.${mapper}.sorted.bam reads.mapped.bam
+        samtools index -@ ${task.cpus} ${idfile}.${mapper}.sorted.bam 
         rm reads.mapped.bam
         """
    }
@@ -529,7 +531,8 @@ process mapping {
         """
         graphmap align -t ${task.cpus} -r ${reference} ${mappars} -d ${fastq_file}  | samtools view -@ ${task.cpus} -F4 -hSb - > reads.mapped.bam
         samtools sort -@ ${task.cpus} -o ${idfile}.${mapper}.sorted.bam reads.mapped.bam
-        rm reads.mapped.bam
+        samtools index -@ ${task.cpus} ${idfile}.${mapper}.sorted.bam 
+		rm reads.mapped.bam
         """
    }   
     else {
@@ -557,6 +560,8 @@ process cram_conversion {
     def downcmd = ""
     def input = aln
     def cleancmd = ""
+	gzipcmd = unzipCmd(reference, "myreference.fasta")
+	gzipclean = "rm myreference.fasta"  
 	if (params.downsampling != "") {
 		def perc = params.downsampling/100
 		downcmd = "samtools view -@ ${task.cpus} -bs ${perc} ${aln} > subsample.bam"
@@ -565,9 +570,11 @@ process cram_conversion {
 	}
  	"""
  		${downcmd}
-		samtools view  -@ ${task.cpus} -C ${input} -T ${reference} -o ${idfile}.${mapper}.sorted.cram
-		samtools index ${idfile}.${mapper}.sorted.cram
+ 		${gzipcmd}
+		samtools view  -@ ${task.cpus} -C ${input} -T  myreference.fasta -o ${idfile}.${mapper}.sorted.cram
+		samtools index -@ ${task.cpus} ${idfile}.${mapper}.sorted.cram
 		${cleancmd} 
+		${gzipclean}
     """
 }
 
@@ -708,38 +715,29 @@ QC_folders.mix(fastqc_for_multiqc,qc2_for_multiqc,read_counts,count_repo_for_mul
 *  Perform viral variant call (experimental)
 */
 
-if ( params.variant_call == "YES" && params.seq_type != "RNA") {
+if ( params.variant_caller == "YES" && params.seq_type != "RNA") {
 
 	process variant_calling {
 		tag {"${idfile}"}  
 		publishDir outputVars, pattern: "*.vcf", mode: 'copy'
-		label 'variant_proc'
+		label 'big_cpus'
 
 		input:
-		set idfile, file(bamfile), file(fastqfile) from aligned_reads_for_vars.join(fastq_files_for_variants)
+		set idfile, file(bamfile), file(bai) from aligned_reads_for_vars
         file(reference) 
-        file(stat_for_variants)
-        file "*" from fast5_4_variant.collect()
-
+        
 		output:
-		file("${idfile}.cvf")
+		file("*.vcf")
 		
 		script:
-		gzipcmd = "ln -s ${reference} myreference.fasta"
-		if (reference.endsWith("gz")) {
-			gzipcmd = "zcat ${reference}  > myreference.fasta" 
-		}    
+		gzipcmd = unzipCmd(reference, "myreference.fasta")
+		gzipclean = "rm myreference.fasta"  
 		"""
-		samtools index ${bamfile}
-		if [ `echo ${reference} | grep ".gz"` ]; then
-			zcat ${reference} > myreference.fasta
-		else
-		  ln -s ${reference} myreference.fasta
-		fi
-		nanopolish index -s ${stat_for_variants} -d ./ ${fastqfile}
-		nanopolish variants --threads ${task.cpus} --reads ${fastqfile} --bam ${bamfile} --genome myreference.fasta --outfile ${idfile}.vcf --ploidy 1 --calculate-all-support	
+			${gzipcmd}
+			medaka_variant ${params.variant_opt} -i ${bamfile} -f myreference.fasta -d -t ${task.cpus} -o ./out
+			mv `ls -t out/round_*.vcf| head -n1 ` .
+			${gzipclean}
 		"""
-		 
 		}
 	}
 
@@ -800,6 +798,15 @@ workflow.onComplete {
 }
 
 // make named pipe 
+def unzipCmd(filename, unzippedname) { 
+    cmd = "ln -s filename unzippedname"
+    ext = filename.getExtension()
+    if (ext == "gz") {
+    	cmd = "zcat ${filename} > ${unzippedname}"
+    }
+    return cmd
+}
+
 def unzipBash(filename) { 
     cmd = filename.toString()
     if (cmd[-3..-1] == ".gz") {
