@@ -799,7 +799,7 @@ workflow.onComplete {
 
 // make named pipe 
 def unzipCmd(filename, unzippedname) { 
-    cmd = "ln -s filename unzippedname"
+    cmd = "ln -s ${filename} ${unzippedname}"
     ext = filename.getExtension()
     if (ext == "gz") {
     	cmd = "zcat ${filename} > ${unzippedname}"
