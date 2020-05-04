@@ -17,6 +17,9 @@ ARG BEDTOOLS_VERSION=2.29.2
 ARG NANOCOMPORE_VERSION=v1.0.0rc3-1
 ARG MEDAKA_VERSION=v0.11.5
 ARG NANOPOLISHCOMP_VERSION=v0.6.2
+ARG NPTRANSCRIPT_VERSION=85d2e30
+ARG FLAIR_VERSION=379362f
+
 
 #upgrade pip
 RUN pip install -U pip
@@ -70,7 +73,7 @@ ENV PATH "/usr/local/hdf5/bin":${PATH}
 RUN Rscript -e "BiocManager::install(c('BiocGenerics', 'Biostrings', 'IRanges', 'zlibbioc', 'XVector', 'bit', 'pryr', 'hdf5r', 'foreach', 'doParallel', 'doSNOW', 'rbokeh', 'psych', 'gistr', 'mnormt'))"
 RUN Rscript -e "BiocManager::install(c('Rsamtools'))"
 RUN Rscript -e "BiocManager::install(c('tidyr'))"
-RUN Rscript -e "devtools::install_github(\"adnaniazi/tailfindr\", dependencies=FALSE)"
+RUN Rscript -e "devtools::install_github(\"adnaniazi/tailfindr\", dependencies=FALSE, INSTALL_opts=c(\"--no-docs\", \"--no-help\"))"
 
 # Installing Nanopolish
 RUN yum install -y wget 
@@ -94,6 +97,24 @@ RUN pip install ont-fast5-api==${ONTFAST5API_VERSION}
 # Installing vennDiagram
 RUN Rscript -e "install.packages(c('gplots', 'VennDiagram'), dependencies = TRUE, repos='http://cran.us.r-project.org')"
 
+# install npTranscript
+RUN git clone --depth 1 https://github.com/lachlancoin/npTranscript.git; cd npTranscript; git checkout ${NPTRANSCRIPT_VERSION}
+
+# install FLAIR
+RUN pip install intervaltree kerneltree tqdm pybedtools pysam
+RUN git clone --depth 1 https://github.com/BrooksLabUCSC/flair; cd flair; git checkout ${FLAIR_VERSION}; \
+echo '#!/usr/bin/env python' > flair.py2; cat flair.py >> flair.py2; mv flair.py2 flair.py; chmod +x flair.py; \
+cd bin; for i in *.py; do echo '#!/usr/bin/env python' > $i.2; grep -v '#!' $i >> $i.2; mv $i.2 $i; chmod +x $i; done
+
+# install pigz
+RUN yum install -y pigz
+
+# install Leszek mod
+RUN pip install matplotlib seaborn scipy 
+RUN mkdir modPhred;
+COPY modPhred.pub/src/* /project/modPhred/
+RUN chmod +x modPhred/* 
+
 # Clean cache
 RUN yum clean all 
 
@@ -104,5 +125,6 @@ RUN rm -fr fastqc.zip  samtools-*
 
 ENV SAM2TSV "java -jar /project/jvarkit/dist/sam2tsv.jar"
 ENV PICARD "java -jar /usr/local/bin/picard.jar"
+ENV PATH "/project/modPhred/:/project/flair/:${PATH}"
 ENV LC_ALL=en_US.utf8
 ENV LANG=en_US.utf8

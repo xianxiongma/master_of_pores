@@ -104,9 +104,16 @@ if( outputReport.exists() ) {
 /*
  * Creates the channels that emits fast5 files
  */
-Channel
+if(params.fast5 == "") {
+ Channel
+	.empty()
+	.into {fast5_4_testing; fast5_4_granularity}
+} else {	
+ Channel
     .fromPath( params.fast5)                                             
     .into {fast5_4_testing; fast5_4_granularity}
+    .ifEmpty { print "no fast5 files provided" }
+}
 
 /*
  * Creates the channels that emits fastq files
@@ -120,9 +127,13 @@ Channel
 /*
  * Get the name from the folder
  */
-folder_info = params.fast5.tokenize("/")
-folder_name = folder_info[-3]
-
+if (params.fast5 != "") {
+	folder_info = params.fast5.tokenize("/")
+	folder_name = folder_info[-3]
+} else {
+	folder_info = params.fastq.tokenize("/")
+	folder_name = folder_info[-2]
+}
 
 /*
 * This is default value in case guppy will be used for RNA demultiplexing
@@ -143,8 +154,8 @@ if (params.ref_type == "genome") {
 
 
 process testInput {
-    tag {"${fast5}"}  
-            
+    tag {"${fast5}"}     
+        
     input:
     file(fast5) from fast5_4_testing.first()
 
@@ -242,6 +253,7 @@ if(demultiplexer == "deeplexicon") {
 } else {
 	fastq_files_for_demultiplexing.set{ fastq_for_filtering}
 }
+
 
 /*
 *  Perform filtering (optional) using nanofilt on fastq files
@@ -416,7 +428,7 @@ if ( params.counter == "YES") {
 		} else if (params.ref_type == "genome") {
 			def anno = unzipBash("${params.annotation}") 
 			"""
-			samtools view ${bamfile} |htseq-count -f sam - ${anno} -o ${idfile}.sam > ${idfile}.count
+			samtools view ${bamfile} |htseq-count ${counter_opt} -f sam - ${anno} -o ${idfile}.sam > ${idfile}.count
 			awk '{gsub(/XF:Z:/,"",\$NF); print \$1"\t"\$NF}' ${idfile}.sam |grep -v '__' > ${idfile}.assigned
 			rm ${idfile}.sam
 			"""		
@@ -553,10 +565,19 @@ if ( params.variant_caller == "YES" && params.seq_type != "RNA") {
 
 // make named pipe 
 def unzipCmd(filename, unzippedname) { 
-    cmd = "ln -s filename unzippedname"
-    ext = filename.getExtension()
+    def cmd = "ln -s ${filename} ${unzippedname}"
+    def ext = filename.getExtension()
     if (ext == "gz") {
     	cmd = "zcat ${filename} > ${unzippedname}"
+    }
+    return cmd
+}
+
+// make named pipe 
+def unzipBash(filename) { 
+    def cmd = filename.toString()
+    if (cmd[-3..-1] == ".gz") {
+    	cmd = "<(zcat ${filename})"
     }
     return cmd
 }
@@ -614,12 +635,5 @@ workflow.onComplete {
     println "Execution status: ${ workflow.success ? 'OK' : 'failed' }"
 }
 
-// make named pipe 
-def unzipBash(filename) { 
-    cmd = filename.toString()
-    if (cmd[-3..-1] == ".gz") {
-    	cmd = "<(zcat ${filename})"
-    }
-    return cmd
-}
+
 
