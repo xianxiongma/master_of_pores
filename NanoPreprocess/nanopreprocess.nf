@@ -730,7 +730,7 @@ if ( params.variant_caller == "YES" && params.seq_type != "RNA") {
 		file("*.vcf")
 		
 		script:
-		gzipcmd = unzipCmd(reference, "myreference.fasta")
+		gzipcmd = unzipCmd(reference, "myreference.fasta", "yes")
 		gzipclean = "rm myreference.fasta"  
 		"""
 			${gzipcmd}
@@ -798,17 +798,22 @@ workflow.onComplete {
 }
 
 // make named pipe 
-def unzipCmd(filename, unzippedname) { 
-    cmd = "ln -s ${filename} ${unzippedname}"
-    ext = filename.getExtension()
+def unzipCmd(filename, unzippedname, copy="") { 
+    def cmd = "ln -s ${filename} ${unzippedname}"
+	if (copy!="") {
+		cmd = "cp ${filename} ${unzippedname}"
+	}
+    def ext = filename.getExtension()
     if (ext == "gz") {
     	cmd = "zcat ${filename} > ${unzippedname}"
     }
     return cmd
 }
 
+
+// make named pipe 
 def unzipBash(filename) { 
-    cmd = filename.toString()
+    def cmd = filename.toString()
     if (cmd[-3..-1] == ".gz") {
     	cmd = "<(zcat ${filename})"
     }
