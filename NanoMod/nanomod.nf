@@ -316,7 +316,7 @@ fast5_for_tombo_modifications.combine(idx_for_tombo_modifications, by: 0).into{d
 */
 
 process getModificationsWitTombo {
-    label 'big_mem_cpus'
+    label 'big_long_mem_cpus'
     tag {"${combID}"}  
 	publishDir outputtombo, pattern: "*.significant_regions.fasta",  mode: 'copy'
         
