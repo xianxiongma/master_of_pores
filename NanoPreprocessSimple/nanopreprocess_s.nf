@@ -80,26 +80,28 @@ mapper      		= params.mapper
 mapper_opt   		= params.mapper_opt
 counter_opt   		= params.counter_opt 
 
-
 // Output folders
-outputFastq    = "${params.output}/fastq_files"
-outputFast5    = "${params.output}/fast5_files"
-outputQual     = "${params.output}/QC_files"
-outputMultiQC  = "${params.output}/report"
-outputMapping  = "${params.output}/alignment"
-outputCRAM     = "${params.output}/cram_files"
-outputCounts   = "${params.output}/counts"
-outputVars     = "${params.output}/variants"
-outputAssigned = "${params.output}/assigned"
-outputReport   = file("${outputMultiQC}/multiqc_report.html")
+
+outputFastq    = "fastq_files"
+outputFast5    = "fast5_files"
+outputQual     = "QC_files"
+outputMultiQC  = "report"
+outputMapping  = "alignment"
+outputCRAM     = "cram_files"
+outputCounts   = "counts"
+outputVars     = "variants"
+outputAssigned = "assigned"
 
 /*
 * move old multiQCreport
 */
+outputReport   = file("${outputMultiQC}/multiqc_report.html")
+
 if( outputReport.exists() ) {
   log.info "Moving old report to multiqc_report.html multiqc_report.html.old"
   outputReport.moveTo("${outputMultiQC}/multiqc_report.html.old")
 }
+
 
 /*
  * Creates the channels that emits fast5 files
@@ -126,7 +128,6 @@ Channel
 
 /*
  * Get the name from the folder
- */
 if (params.fast5 != "") {
 	folder_info = params.fast5.tokenize("/")
 	folder_name = folder_info[-3]
@@ -134,6 +135,7 @@ if (params.fast5 != "") {
 	folder_info = params.fastq.tokenize("/")
 	folder_name = folder_info[-2]
 }
+ */
 
 /*
 * This is default value in case guppy will be used for RNA demultiplexing
@@ -279,9 +281,12 @@ if (params.filter == "nanofilt") {
 	fastq_for_filtering.transpose().set{ fastq_for_next_step}
 }
 
+
 // check this
 fastq_for_next_step.map{
 	filepath=it[1]
+	file_parts = "${filepath}".tokenize("/")
+	def folder_name  = file_parts[-2]
     if (demultiplexer != "OFF") {
         fileparts = filepath.getName().tokenize(".")
  		["${folder_name}.${fileparts[-3]}", filepath]
@@ -289,6 +294,7 @@ fastq_for_next_step.map{
 		["${folder_name}", filepath]
 	}
 }.groupTuple().into{fastq_files_for_fastqc; fastq_files_for_mapping}
+
 
 /*
 *  Perform fastQC on fastq files
@@ -298,7 +304,7 @@ process fastQC {
     tag {idfile}  
     label 'big_cpus'
 
-    publishDir outputQual, pattern: "*_fastqc.html", mode: 'copy'
+    publishDir "${params.output}/${idfile}/${outputQual}/", pattern: "*_fastqc.html", mode: 'copy'
    
     input:
     set idfile, file(fastq_file) from fastq_files_for_fastqc
@@ -314,7 +320,7 @@ process fastQC {
 
 process mapping {
     tag {"${mapper}-${idfile}"}  
-    publishDir outputMapping, mode: 'copy'
+    publishDir "${params.output}/${idfile}/${outputMapping}/", pattern: ".${mapper}.sorted.bam*",  mode: 'copy'
     label 'big_mem_cpus'
 
     input:
@@ -370,7 +376,7 @@ process mapping {
 */
 process cram_conversion {
     tag {"${mapper}-${idfile}"}  
-    publishDir outputCRAM, mode: 'copy'
+    publishDir "${params.output}/${idfile}/${outputCRAM}/", mode: 'copy'
     label 'big_mem_cpus'
 
     input:
@@ -408,8 +414,8 @@ process cram_conversion {
 if ( params.counter == "YES") {
 	process counting {
 		tag {"${idfile}"}  
-		publishDir outputCounts, pattern: "*.count", mode: 'copy'
-		publishDir outputAssigned, pattern: "*.assigned", mode: 'copy'
+	    publishDir "${params.output}/${idfile}/${outputCounts}/", pattern: "*.count", mode: 'copy'
+    	publishDir "${params.output}/${idfile}/${outputAssigned}/", pattern: "*.assigned", mode: 'copy'
 
 		input:
 		set idfile, file(bamfile) from aligned_reads_for_counts
@@ -505,7 +511,7 @@ process joinAlnQCs {
 */
 
 process alnQC2 {
-    publishDir outputQual, pattern: "*_plot/*", mode: 'copy'
+    publishDir "${params.output}/${bamid}/${outputQual}/", pattern: "*_plot/*", mode: 'copy'
     label 'big_cpus'
     errorStrategy 'ignore'
     tag {bamid}  
@@ -540,8 +546,9 @@ if ( params.variant_caller == "YES" && params.seq_type != "RNA") {
 
 	process variant_calling {
 		tag {"${idfile}"}  
-		publishDir outputVars, pattern: "*.vcf", mode: 'copy'
+    	publishDir "${params.output}/${idfile}/${outputVars}/", pattern: "*.vcf", mode: 'copy'
 		label 'big_cpus'
+   		errorStrategy 'ignore'
 
 		input:
 		set idfile, file(bamfile), file(bai) from aligned_reads_for_vars
@@ -589,7 +596,7 @@ def unzipBash(filename) {
 *  Perform multiQC report
 */
 process multiQC {
-    publishDir outputMultiQC, mode: 'copy'
+    publishDir "${params.output}/${outputMultiQC}/", mode: 'copy'
    
     input:
     file(logo)
