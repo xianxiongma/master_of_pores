@@ -58,6 +58,7 @@ logo = file("$baseDir/../docs/logo_small.png")
 model_folder = file("$baseDir/models/")
 if( !model_folder.exists() ) exit 1, "Missing folders with EpiNano's models!"
 joinScript = file("$baseDir/bin/join.r")
+mergeTomboScript = file("$baseDir/bin/Merge_Tombo_wigs_MoP.R")
 
 tombo_opt    	= params.tombo_opt
 epinano_opt     = params.epinano_opt
@@ -322,10 +323,11 @@ process getModificationsWitTombo {
         
     input:
     file(reference)
+    file(mergeTomboScript)
     set val(combID), file(fast5s_A), file(fast5s_B), file(index_A), file(index_B) from data_for_tombo_modifications
     
     output:
-    file ("*.significant_regions.fasta") into sign_tombo_regions
+    file ("${folder_name_A}_${folder_name_B}_Tombo_Output.tsv") into sign_tombo_regions
 
     script:
 	def reference_cmd = unzipFile(reference, "reference.fa")
@@ -339,11 +341,34 @@ process getModificationsWitTombo {
 	mv ${index_A} ${folder_name_A}
 	mv ${fast5s_B} ${folder_name_B}
 	mv ${index_B} ${folder_name_B}
-	tombo detect_modifications model_sample_compare --minimum-test-reads ${params.coverage} --fast5-basedirs ${folder_name_A}/* --control-fast5-basedirs ${folder_name_B}/* --statistics-file-basename ${folder_name_A}_${folder_name_B}_model_sample_compare --rna --per-read-statistics-basename ${folder_name_A}_${folder_name_B}_per-read-statistics --processes ${task.cpus}
-	tombo text_output signif_sequence_context ${tombo_opt} --num-regions 1000000000 --statistics-filename ${folder_name_A}_${folder_name_B}_model_sample_compare.tombo.stats  --genome-fasta reference.fa --fast5-basedirs ${folder_name_A} --sequences-filename ${folder_name_A}_${folder_name_B}.significant_regions.fasta 
+
+	tombo detect_modifications level_sample_compare \
+	--fast5-basedirs ${folder_name_A}/* \
+    --alternate-fast5-basedirs ${folder_name_B}/* \
+    --processes ${task.cpus} \
+    --statistics-file-basename ${folder_name_A}_${folder_name_B}_model_sample_compare --store-p-value
+    
+	tombo text_output browser_files --fast5-basedirs ${folder_name_A}/* \
+	--control-fast5-basedirs ${folder_name_B}/* \
+	--browser-file-basename ${folder_name_A}_${folder_name_B} \
+	--statistics-filename ${folder_name_A}_${folder_name_B}_model_sample_compare.tombo.stats \
+	--file-types {'coverage','statistic'}
+
+
+	bedgraph2wig.pl --bedgraph ${folder_name_A}_${folder_name_B}.coverage.sample.plus.bedgraph --wig ${folder_name_A}_${folder_name_B}.coverage.sample.plus.wig --step 1 --compact
+	bedgraph2wig.pl --bedgraph ${folder_name_A}_${folder_name_B}.coverage.sample.minus.bedgraph --wig ${folder_name_A}_${folder_name_B}.coverage.sample.minus.wig --step 1 --compact
+	bedgraph2wig.pl --bedgraph ${folder_name_A}_${folder_name_B}.coverage.control.plus.bedgraph --wig ${folder_name_A}_${folder_name_B}.coverage.control.plus.wig --step 1 --compact
+	bedgraph2wig.pl --bedgraph ${folder_name_A}_${folder_name_B}.coverage.control.minus.bedgraph --wig ${folder_name_A}_${folder_name_B}.coverage.control.minus.wig --step 1 --compact
+
+	Rscript --vanilla ${mergeTomboScript} -stats_wig ${folder_name_A}_${folder_name_B}.statistic.plus.wig -Cov_WT ${folder_name_A}_${folder_name_B}.coverage.sample.plus.wig -Cov_Control ${folder_name_A}_${folder_name_B}.coverage.control.plus.wig -output ${folder_name_A}_${folder_name_B}
+	Rscript --vanilla ${mergeTomboScript} -stats_wig ${folder_name_A}_${folder_name_B}.statistic.minus.wig -Cov_WT ${folder_name_A}_${folder_name_B}.coverage.sample.minus.wig -Cov_Control ${folder_name_A}_${folder_name_B}.coverage.control.minus.wig -output ${folder_name_A}_${folder_name_B}
+
 	rm reference.fa
 	"""
 }
+
+//	Rscript Merge_Tombo_wigs_MoP.R -stats_wig ${folder_name_A}${folder_name_B}.statistic.plus.wig -Cov_WT ${folder_name_A}${folder_name_B}.coverage.plus.wig -Cov_Control ${folder_name_A}${folder_name_B}.coverage.control.plus.wig -output ${folder_name_A}${folder_name_B}
+//	Rscript Merge_Tombo_wigs_MoP.R -stats_wig ${folder_name_A}${folder_name_B}.statistic.minus.wig -Cov_WT ${folder_name_A}${folder_name_B}.coverage.minus.wig -Cov_Control ${folder_name_A}${folder_name_B}.coverage.control.minus.wig -output ${folder_name_A}${folder_name_B}
 
 
 /*

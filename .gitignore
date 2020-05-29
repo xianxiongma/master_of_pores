@@ -8,6 +8,6 @@ NanoPreprocess/bin/guppy*
 NanoPreprocess/bin/ont-guppy*
 log
 */out*
-work
+*/work
 singularity
 .nextflow*
