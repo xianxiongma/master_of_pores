@@ -112,17 +112,16 @@ if(params.fast5 == "") {
 	.into {fast5_4_testing; fast5_4_granularity}
 } else {	
  Channel
-    .fromPath( params.fast5)                                             
+    .fromPath(params.fast5)                                             
+    .ifEmpty(){ error "Cannot find any file matching: ${params.fast5}" }
     .into {fast5_4_testing; fast5_4_granularity}
-    .ifEmpty { print "no fast5 files provided" }
 }
-
 /*
  * Creates the channels that emits fastq files
  */
 Channel
     .fromFilePairs( params.fastq, size: 1)                                             
-    .ifEmpty { error "Cannot find any file matching: ${params.fastq}" }
+    .ifEmpty(){ error "Cannot find any file matching: ${params.fastq}" }
     .set {fastq_files_for_demultiplexing}
 
 
@@ -562,8 +561,12 @@ if ( params.variant_caller == "YES" && params.seq_type != "RNA") {
 		gzipclean = "rm myreference.fasta"  
 		"""
 			${gzipcmd}
-			medaka_variant ${params.variant_opt} -i ${bamfile} -f myreference.fasta -d -t ${task.cpus} -o ./out
-			mv `ls -t out/round_*.vcf| head -n1 ` .
+			medaka consensus ${bamfile} outputs.hdf
+                        medaka variant myreference.fasta outputs.hdf ${idfile}.vcf
+                        medaka tools annotate ${idfile}.vcf reference.fasta ${bamfile} ${idfile}.annot.vcf
+
+                        #medaka_variant ${params.variant_opt} -i ${bamfile} -f myreference.fasta -d -t ${task.cpus} -o ./out
+			#mv `ls -t out/round_*.vcf| head -n1 ` .
 			${gzipclean}
 		"""
 		}
