@@ -257,7 +257,7 @@ process baseCalling {
         if (demultiplexer == "guppy") {
 			"""
                 ${gpu_prefix}
-				guppy_basecaller ${gpu_cmd} ${basecaller_opt} ${demultiplexer_opt} --flowcell ${params.flowcell} --kit ${params.kit} --num_barcode_threads ${task.cpus} --barcode_kits ${params.barcodekit} --trim_barcodes  --fast5_out --input ${infolder} --save_path ./${idfile}_out --cpu_threads_per_caller 1  --num_callers ${task.cpus} 
+				guppy_basecaller ${gpu_cmd} ${basecaller_opt} ${demultiplexer_opt} --flowcell ${params.flowcell} --kit ${params.kit} --num_barcode_threads ${task.cpus} --barcode_kits ${params.barcodekit} --trim_barcodes  --fast5_out --input ${infolder} --save_path ./${idfile}_out --cpu_threads_per_caller 1 --gpu_runners_per_device 1 --num_callers ${task.cpus} 
 				cd ${idfile}_out; 
 				if [ -d barcode01 ]; then
 					for d in barcode*; do echo \$d; cat \$d/*.fastq ${RNA_conv_cmd} > ../${idfile}.\$d.fastq; done;
@@ -270,7 +270,7 @@ process baseCalling {
         else if (demultiplexer == "guppy-readucks") {
         	"""
                 ${gpu_prefix}
-				guppy_basecaller ${gpu_cmd} ${basecaller_opt} ${demultiplexer_opt} --flowcell ${params.flowcell} --kit ${params.kit} --num_barcode_threads ${task.cpus} --barcode_kits ${params.barcodekit} --trim_barcodes  --fast5_out --input ${infolder} --save_path ./${idfile}_out --cpu_threads_per_caller 1  --num_callers ${task.cpus} 
+				guppy_basecaller ${gpu_cmd} ${basecaller_opt} ${demultiplexer_opt} --flowcell ${params.flowcell} --kit ${params.kit} --num_barcode_threads ${task.cpus} --barcode_kits ${params.barcodekit} --trim_barcodes  --fast5_out --input ${infolder} --save_path ./${idfile}_out --gpu_runners_per_device 1 --cpu_threads_per_caller 1  --num_callers ${task.cpus} 
 				cd ${idfile}_out; 
 				if [ -d barcode01 ]; then
 					for d in barcode*; do echo \$d; cat \$d/*.fastq ${RNA_conv_cmd} > ../${idfile}.\$d.fastq; done;
@@ -283,7 +283,7 @@ process baseCalling {
         else  {
 			"""
             ${gpu_prefix}
-			guppy_basecaller ${gpu_cmd} --flowcell ${params.flowcell} --kit ${params.kit} --fast5_out ${basecaller_opt} --input ${infolder} --save_path ./${idfile}_out --cpu_threads_per_caller 1  --num_callers  ${task.cpus} 
+			guppy_basecaller ${gpu_cmd} --flowcell ${params.flowcell} --kit ${params.kit} --fast5_out ${basecaller_opt} --input ${infolder} --save_path ./${idfile}_out --cpu_threads_per_caller 1 --gpu_runners_per_device 1 --num_callers  ${task.cpus} 
 			cat ${idfile}_out/*.fastq ${RNA_conv_cmd} >> ${idfile}.fastq
 			rm ${idfile}_out/*.fastq
 			gzip ${idfile}.fastq
