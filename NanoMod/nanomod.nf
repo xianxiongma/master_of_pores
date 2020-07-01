@@ -58,7 +58,7 @@ logo = file("$baseDir/../docs/logo_small.png")
 model_folder = file("$baseDir/models/")
 if( !model_folder.exists() ) exit 1, "Missing folders with EpiNano's models!"
 joinScript = file("$baseDir/bin/join.r")
-mergeTomboScript = file("$baseDir/bin/Merge_Tombo_wigs_MoP.R")
+mergeTomboScript = file("$baseDir/bin/Merge_Tombo_wigs_MoP_v2.R")
 
 tombo_opt    	= params.tombo_opt
 epinano_opt     = params.epinano_opt
@@ -360,8 +360,9 @@ process getModificationsWitTombo {
 	bedgraph2wig.pl --bedgraph ${folder_name_A}_${folder_name_B}.coverage.control.plus.bedgraph --wig ${folder_name_A}_${folder_name_B}.coverage.control.plus.wig --step 1 --compact
 	bedgraph2wig.pl --bedgraph ${folder_name_A}_${folder_name_B}.coverage.control.minus.bedgraph --wig ${folder_name_A}_${folder_name_B}.coverage.control.minus.wig --step 1 --compact
 
-	Rscript --vanilla ${mergeTomboScript} -stats_wig ${folder_name_A}_${folder_name_B}.statistic.plus.wig -Cov_WT ${folder_name_A}_${folder_name_B}.coverage.sample.plus.wig -Cov_Control ${folder_name_A}_${folder_name_B}.coverage.control.plus.wig -output ${folder_name_A}_${folder_name_B}
-	Rscript --vanilla ${mergeTomboScript} -stats_wig ${folder_name_A}_${folder_name_B}.statistic.minus.wig -Cov_WT ${folder_name_A}_${folder_name_B}.coverage.sample.minus.wig -Cov_Control ${folder_name_A}_${folder_name_B}.coverage.control.minus.wig -output ${folder_name_A}_${folder_name_B}
+	Rscript --vanilla ${mergeTomboScript} -stats_wig ${folder_name_A}_${folder_name_B}.statistic.plus.wig -Cov_WT ${folder_name_A}_${folder_name_B}.coverage.sample.plus.wig -Cov_Control ${folder_name_A}_${folder_name_B}.coverage.control.plus.wig -output ${folder_name_A}_${folder_name_B}_plus  	
+
+	Rscript --vanilla ${mergeTomboScript} -stats_wig ${folder_name_A}_${folder_name_B}.statistic.minus.wig -Cov_WT ${folder_name_A}_${folder_name_B}.coverage.sample.minus.wig -Cov_Control ${folder_name_A}_${folder_name_B}.coverage.control.minus.wig -output ${folder_name_A}_${folder_name_B}_minus
 
 	rm reference.fa
 	"""
