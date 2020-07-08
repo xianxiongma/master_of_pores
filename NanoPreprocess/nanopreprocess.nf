@@ -247,7 +247,8 @@ process baseCalling {
         def gpu_prefix = ""
         if (params.GPU == "ON") {
             gpu_prefix = 'export LD_LIBRARY_PATH="/usr/local/nvidia/lib:/usr/local/nvidia/lib64:/.singularity.d/libs"'
-         	gpu_cmd = '-x "cuda:0"'
+         	//gpu_cmd = '-x "cuda:0"'
+                gpu_cmd = '-x auto'
         }
         // in case input files are single fast5 group them in multifast5 at the end
         if (multi5 == 0) {
