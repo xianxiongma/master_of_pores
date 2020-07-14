@@ -194,6 +194,27 @@ fast5_batches.map {
 *  Perform base calling using albacore or guppy on raw fas5 files
 */
 
+process logBaseCalling {
+    label (params.GPU == "ON" ? 'basecall_gpus': 'basecall_cpus')
+    echo true
+    
+    script:
+    if (basecaller == "albacore") {
+ 	    """
+ 	    echo "no"
+ 	    #export PYTHONPATH=$baseDir/bin/albacore:\$PYTHONPATH
+		#read_fast5_basecaller.py 
+        """
+   } else if (basecaller == "guppy"){
+		"""
+		echo '*********************************'
+		guppy_basecaller --version
+		guppy_basecaller --print_workflows | grep ${params.flowcell} | grep ${params.kit}
+		echo '*********************************'
+		"""
+   }
+}
+
 process baseCalling {
     tag {"${basecaller}-${folder_name}-${idfile}"}  
 
