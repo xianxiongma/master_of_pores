@@ -327,7 +327,7 @@ process getModificationsWitTombo {
     set val(combID), file(fast5s_A), file(fast5s_B), file(index_A), file(index_B) from data_for_tombo_modifications
     
     output:
-    file ("${folder_name_A}_${folder_name_B}_Tombo_Output.tsv") into sign_tombo_regions
+    file ("*_Tombo_Output.tsv") into sign_tombo_regions
 
     script:
 	def reference_cmd = unzipFile(reference, "reference.fa")
