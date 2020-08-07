@@ -228,8 +228,7 @@ if(demultiplexer == "deeplexicon") {
 
 		script:
 		"""
-		head -n 1 demux_1 > all_demux.txt
-		grep -h -v "Confidence" demux_* >> all_demux.txt
+                awk '{if (NR==1) {print \$0} else if (\$0 !~ /Confidence/) {print \$0}}' demux_* > all_demux.txt
  		"""
 		
     }
