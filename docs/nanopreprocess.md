@@ -17,7 +17,7 @@ This module takes as input the raw fast5 reads and produces a number of outputs 
 | ------------- | ------------- |
 |**testInput**|Detection of kind of fast5 (multi or single)|
 |**baseCalling**|Basecalling with *Albacore* or *Guppy*|
-|**demultiplexing_with_deeplexicon**|Demultiplexing (optional) with **DeePlexiCon**|
+|**demultiplexing**|Demultiplexing (optional)|
 |**concatenateFastQFiles**|This process concatenates the fastq files produces for each single basecalling |
 |**QC**|performed with  *MinIONQC*|
 |**fastQC**|on fastq files|
@@ -46,7 +46,7 @@ You can launch the pipeline choosing either the parameter **-with-singularity** 
 |**basecaller**|program. guppy or albacore are supported.|
 |**basecaller_opt**|command line options for basecaller program |
 |**GPU**|it allows using GPU or not. I can be either OFF or NO|
-|**demultiplexing**|program. It is supported only deeplexicon. It can be turned off by specifying "OFF"|
+|**demultiplexing**|program. We support deeplexicon, guppy and combination of guppy-readucks. It can be turned off by specifying "OFF"|
 |**demultiplexing_opt**|options for the demultiplexing program. |
 |**filter**|it can be NanoFilt or OFF is filtering is needed.|
 |**filter_opt**|options of the filtering program.   |
