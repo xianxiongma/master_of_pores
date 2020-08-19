@@ -354,7 +354,7 @@ process mapping {
    }
    else if (mapper == "graphmap"){
         """
-        graphmap align -t ${task.cpus} -r ${reference} -d ${fastq_file}  | samtools view -@ ${task.cpus} -F4 -hSb - > reads.mapped.bam
+        graphmap align -t ${task.cpus} ${mapper_opt} -r ${reference} -d ${fastq_file}  | samtools view -@ ${task.cpus} -F4 -hSb - > reads.mapped.bam
         samtools sort -@ ${task.cpus} -o ${idfile}.${mapper}.sorted.bam reads.mapped.bam
         samtools index -@ ${task.cpus} ${idfile}.${mapper}.sorted.bam 
 		rm reads.mapped.bam
