@@ -318,7 +318,7 @@ process fastQC {
 
 process mapping {
     tag {"${mapper}-${idfile}"}  
-    publishDir "${params.output}/${idfile}/${outputMapping}/", pattern: ".${mapper}.sorted.bam*",  mode: 'copy'
+    publishDir "${params.output}/${idfile}/${outputMapping}/", pattern: "*.${mapper}.sorted.bam*",  mode: 'copy'
     label 'big_mem_cpus'
 
     input:
