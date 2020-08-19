@@ -97,4 +97,15 @@ Ten folders are created by the pipeline within the output folder specified by th
 -----------------------------------------------------
 
 
+# NanoPreprocessSimple
+
+This is a light version of NanoPreprocess that miss of the basecalling step. It allows to make the same analysis starting from basecalled reads in fastq formats. You can also provide fast5 files if you need to demultiplex using DeepLexiCon.
+
+This module will allow to run the pipeline on multiple input samples by using this syntax in the params.file:
+
+```bash
+fastq               = "$baseDir/../../../org_data/**/*.fastq.gz"
+```
+
+In this way it will produces a number of output files with the same sample name indicated by the two asterisks.
 
