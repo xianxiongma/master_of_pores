@@ -17,7 +17,7 @@ This module takes as input the raw fast5 reads and produces a number of outputs 
 | ------------- | ------------- |
 |**testInput**|Detection of kind of fast5 (multi or single)|
 |**baseCalling**|Basecalling with *Albacore* or *Guppy*|
-|**demultiplexing**|Demultiplexing (optional)|
+|**demultiplexing**|Demultiplexing (optional)
 |**concatenateFastQFiles**|This process concatenates the fastq files produces for each single basecalling |
 |**QC**|performed with  *MinIONQC*|
 |**fastQC**|on fastq files|
@@ -50,7 +50,7 @@ You can launch the pipeline choosing either the parameter **-with-singularity** 
 |**demultiplexing_opt**|options for the demultiplexing program. |
 |**filter**|it can be NanoFilt or OFF is filtering is needed.|
 |**filter_opt**|options of the filtering program.   |
-|**mapper**|it can be either minimap2 or graphmap2|
+|**mapper**|it can be either graphmap, graphmap2 or minimap2|
 |**mapper_opt**| options of the mapping program. |
 |**map_type**|it can be either spliced or not. In case the alignment is to a eukaryotic genome it should be spliced.|
 |**counter**|this parameter can be YES for counting the number of tags per gene (in case of mapping to the genome) or per transcript (in case of mapping to the transcriptome). An annotation file is needed in case of mapping to the genome.|
@@ -82,15 +82,17 @@ nextflow run nanopreprocess.nf -with-singularity -bg -resume > log.txt
 
 ## Results:
 
-Seven folders are created by the pipeline within the output folder specified by the **output** parameter:
+Ten folders are created by the pipeline within the output folder specified by the **output** parameter and the input folder name that is taken as sample name. 
 
 * **fast5_files**: contains the basecalled multisequence fast5 files. Each batch contains 4000 sequences. 
 * **fastq_files**: contains one or, in case of demultiplexing, more fastq files.
 * **QC_files**: contains each single QC produced by the pipeline.
 * **alignment**: contains the bam file(s)
+* **cram_files**: contains the cram file(s)
 * **counts**: contains read counts per gene / transcript. It is optional.
 * **assigned**: contains assignment of each read to a given gene / transcript. It is optional.
 * **report**: contains the final multiqc report. 
+* **variants**: still experimental. It contains variant calling. 
 
 -----------------------------------------------------
 
